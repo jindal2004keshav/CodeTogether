@@ -181,6 +181,8 @@ export const login = async(req, res) => {
 
 export const googleLogin = async (req, res) => {
   try {
+    console.log("Received");
+    console.log(req);
     const { email, fullname } = req.body;
 
     if (!email) {

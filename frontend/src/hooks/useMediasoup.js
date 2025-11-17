@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -22,10 +22,12 @@ export const useMediasoup = (socket, roomId, name, action) => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [screenStream, setScreenStream] = useState(null);
+  const [isHandRaised, setIsHandRaised] = useState(false);
 
   // Remote Media State
   const [remoteStreams, setRemoteStreams] = useState({});
   const [users, setUsers] = useState([]);
+  const [socketId, setSocketId] = useState(null);
   const navigate = useNavigate();
 
   // Mediasoup-specific refs
@@ -75,7 +77,47 @@ export const useMediasoup = (socket, roomId, name, action) => {
   }, [socket]);
 
   useEffect(() => {
-    if (roomId === "solo" || !socket || !name || !action) return;
+    if (!socket) {
+      setSocketId(null);
+      return;
+    }
+    const updateSocketId = () => setSocketId(socket.id);
+    const handleDisconnect = () => setSocketId(null);
+    if (socket.id) {
+      setSocketId(socket.id);
+    }
+    socket.on('connect', updateSocketId);
+    socket.on('reconnect', updateSocketId);
+    socket.on('disconnect', handleDisconnect);
+    return () => {
+      socket.off('connect', updateSocketId);
+      socket.off('reconnect', updateSocketId);
+      socket.off('disconnect', handleDisconnect);
+    };
+  }, [socket]);
+
+  const syncHandRaiseState = useCallback((userList) => {
+    if (!Array.isArray(userList)) {
+      return;
+    }
+    let myStatus = false;
+    userList.forEach(({ id, handRaised }) => {
+      if (id === socketId) {
+        myStatus = !!handRaised;
+      }
+    });
+    setIsHandRaised(myStatus);
+  }, [socketId]);
+
+  const handRaiseStatus = useMemo(() => {
+    return users.reduce((acc, user) => {
+      acc[user.id] = !!user.handRaised;
+      return acc;
+    }, {});
+  }, [users]);
+
+  useEffect(() => {
+    if (roomId === "solo" || !socket || !socketId || !name || !action) return;
 
     let isMounted = true;
 
@@ -105,12 +147,12 @@ export const useMediasoup = (socket, roomId, name, action) => {
     const handleNewProducer = ({ producerId, socketId, kind, type }) => handleConsumeStream(producerId, socketId, kind, type);
     const handleProducerClosed = ({ socketId }) => setRemoteStreams(prev => { const ns = { ...prev }; delete ns[socketId]; return ns; });
     const handleSpecificProducerClosed = ({ producerId }) => {
-      // for (const consumer of consumersRef.current.values()) {
-      //   if (consumer.producerId === producerId) {
-      //     consumer.close();
-      //     break;
-      //   }
-      // }
+      for (const consumer of consumersRef.current.values()) {
+        if (consumer.producerId === producerId) {
+          consumer.close();
+          break;
+        }
+      }
 
       let consumerInfoToDelete = null;
       // Find the consumer's info object using the producerId
@@ -142,9 +184,28 @@ export const useMediasoup = (socket, roomId, name, action) => {
       });
     };
 
-    const handleUserListUpdate = userList => setUsers(userList.filter(u => u.id !== socket.id));
-    const handleNewUser = ({ name }) => toast(`${name} joined the room.`);
-    const handleUserLeft = ({ name }) => toast(`${name} left the room.`);
+    const handleUserListUpdate = userList => {
+      syncHandRaiseState(userList);
+      setUsers(userList.filter(u => u.id !== socketId));
+    };
+    const handleNewUser = ({ name }) => {
+      toast(`${name} joined the room.`);
+    };
+    const handleUserLeft = ({ name }) => {
+      toast(`${name} left the room.`);
+    };
+    const handleHandRaiseUpdate = ({ userId, handRaised }) => {
+      if (!userId) return;
+      if (userId === socketId) {
+        setIsHandRaised(!!handRaised);
+        return;
+      }
+      setUsers(prev =>
+        prev.map(user =>
+          user.id === userId ? { ...user, handRaised: !!handRaised } : user
+        )
+      );
+    };
     
     socket.on("new-producer", handleNewProducer);
     socket.on("producer-closed", handleProducerClosed);
@@ -152,6 +213,7 @@ export const useMediasoup = (socket, roomId, name, action) => {
     socket.on("update-user-list", handleUserListUpdate);
     socket.on("user-joined", handleNewUser);
     socket.on("user-left", handleUserLeft);
+    socket.on("hand-raise-update", handleHandRaiseUpdate);
 
     const eventToEmit = action === 'create' ? 'create-room' : 'join-room';
     
@@ -160,7 +222,7 @@ export const useMediasoup = (socket, roomId, name, action) => {
 
       if (response.success) {
         toast.success(response.message);
-        setUsers(response.users.filter(u => u.id !== socket.id));
+        setUsers(response.users.filter(u => u.id !== socketId));
         initMediasoup();
       } else {
         toast.error(response.message);
@@ -181,9 +243,22 @@ export const useMediasoup = (socket, roomId, name, action) => {
       socket.off("update-user-list", handleUserListUpdate);
       socket.off("user-joined", handleNewUser);
       socket.off("user-left", handleUserLeft);
+      socket.off("hand-raise-update", handleHandRaiseUpdate);
       if (roomId !== "solo") socket.emit("leave-room");
     };
-  }, [socket, roomId, name, action, handleConsumeStream, navigate]);
+  }, [socket, socketId, roomId, name, action, handleConsumeStream, navigate, syncHandRaiseState]);
+
+  const toggleHandRaise = useCallback(() => {
+    if (!socket || !socketId || roomId === "solo") return;
+    const nextState = !isHandRaised;
+    setIsHandRaised(nextState);
+    socket.emit("toggle-hand-raise", { handRaised: nextState }, (response) => {
+      if (!response?.success) {
+        setIsHandRaised(!nextState);
+        toast.error(response?.message || "Unable to update hand raise");
+      }
+    });
+  }, [socket, socketId, roomId, isHandRaised]);
 
   const toggleScreenShare = useCallback(async () => {
     if (!sendTransportRef.current) return toast.error("Media server not connected.");
@@ -239,6 +314,14 @@ export const useMediasoup = (socket, roomId, name, action) => {
         const stream = await navigator.mediaDevices.getUserMedia({ [mediaType]: true });
         const track = stream.getTracks()[0];
 
+        // Check transport connection state before producing
+        const connectionState = sendTransportRef.current.connectionState;
+        if (connectionState === 'failed' || connectionState === 'disconnected') {
+          toast.error("Media transport is not connected. Please refresh the page.");
+          track.stop();
+          return;
+        }
+
         const newProducer = await sendTransportRef.current.produce({
           track,
           appData: { type: mediaType },
@@ -255,7 +338,13 @@ export const useMediasoup = (socket, roomId, name, action) => {
         if (mediaType === 'audio') setIsAudioEnabled(true);
       } catch (error) {
         console.error(`Failed to get ${mediaType} device.`, error);
-        toast.error(`Could not start ${mediaType}. Check permissions.`);
+        if (error.message && (error.message.includes('recv parameters') || error.message.includes('ERROR_CONTENT'))) {
+          toast.error(`Codec negotiation failed. The room may need to be recreated. Please leave and rejoin the room.`, { duration: 5000 });
+        } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+          toast.error(`Permission denied for ${mediaType}. Please allow access in your browser settings.`);
+        } else {
+          toast.error(`Could not start ${mediaType}. ${error.message || 'Check permissions.'}`);
+        }
       }
     } else {
       socket.emit('close-producer', { producerId: producer.id });
@@ -284,10 +373,13 @@ export const useMediasoup = (socket, roomId, name, action) => {
     screenStream,
     remoteStreams,
     users,
+    handRaiseStatus,
+    isHandRaised,
     isAudioEnabled,
     isVideoEnabled,
     isScreenSharing,
     toggleMedia,
     toggleScreenShare,
+    toggleHandRaise,
   };
 };

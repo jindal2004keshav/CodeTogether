@@ -57,7 +57,7 @@ const Login = () => {
     try {
       const response = await axiosPrivate.post("/api/auth/login", {
         email: "tester@gmail.com",
-        password: "pass123",
+        password: "testing",
       });
       const { accessToken, user } = response.data;
       setAuth({ accessToken, user });
@@ -131,7 +131,7 @@ const Login = () => {
             <input
               type="email"
               value={formData.email}
-              placeholder="e.g. dipanshu@example.com"
+              placeholder="e.g. keshav@example.com"
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }

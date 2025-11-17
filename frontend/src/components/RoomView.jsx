@@ -2,17 +2,42 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import VideoPlayer from './VideoPlayer';
 import './styles/RoomView.css';
 
-const RoomView = ({ myStream, screenStream, remoteStreams, users, auth, isVideoEnabled }) => {
+const RoomView = ({
+  myStream,
+  screenStream,
+  remoteStreams,
+  users,
+  handRaiseStatus = {},
+  isHandRaised: myHandRaised = false,
+  auth,
+  isVideoEnabled,
+}) => {
 
   const [fullscreenInfo, setFullscreenInfo] = useState(null);
   const fullscreenContainerRef = useRef(null);
 
   const allStreams = useMemo(() => {
     const streamList = [
-      { stream: myStream, audioStream: null, name: `${auth?.user?.fullname} (You)`, type: 'video', isMuted: true, isVideoEnabled },
+      {
+        stream: myStream,
+        audioStream: null,
+        name: `${auth?.user?.fullname} (You)`,
+        type: 'video',
+        isMuted: true,
+        isVideoEnabled,
+        isHandRaised: myHandRaised,
+      },
     ];
     if (screenStream) {
-      streamList.push({ stream: screenStream, audioStream: null, name: "Your Screen", type: 'screen', isMuted: true, isVideoEnabled: true });
+      streamList.push({
+        stream: screenStream,
+        audioStream: null,
+        name: "Your Screen",
+        type: 'screen',
+        isMuted: true,
+        isVideoEnabled: true,
+        isHandRaised: false,
+      });
     }
     users.forEach(user => {
       const userStreams = remoteStreams[user.id] || {};
@@ -23,7 +48,8 @@ const RoomView = ({ myStream, screenStream, remoteStreams, users, auth, isVideoE
         name: userName, 
         type: 'video', 
         isMuted: false, 
-        isVideoEnabled: !!userStreams.video?.getVideoTracks()[0]?.enabled 
+        isVideoEnabled: !!userStreams.video?.getVideoTracks()[0]?.enabled,
+        isHandRaised: !!handRaiseStatus[user.id],
       });
       if (userStreams.screen) {
         streamList.push({ 
@@ -32,12 +58,13 @@ const RoomView = ({ myStream, screenStream, remoteStreams, users, auth, isVideoE
           name: `${userName}'s Screen`, 
           type: 'screen', 
           isMuted: true, 
-          isVideoEnabled: true 
+          isVideoEnabled: true,
+          isHandRaised: false,
         });
       }
     });
     return streamList.filter(Boolean);
-  }, [myStream, screenStream, remoteStreams, users, auth, isVideoEnabled]);
+  }, [myStream, screenStream, remoteStreams, users, auth, isVideoEnabled, handRaiseStatus, myHandRaised]);
 
   const handleToggleFullscreen = (streamInfo) => {
     if (document.fullscreenElement) {
@@ -83,6 +110,7 @@ const RoomView = ({ myStream, screenStream, remoteStreams, users, auth, isVideoE
         isVideoEnabled={info.isVideoEnabled}
         isFullscreen={isCurrentlyFullscreen}
         onToggleFullscreen={() => handleToggleFullscreen(info)}
+        isHandRaised={info.isHandRaised}
       />
     );
   };

@@ -116,11 +116,14 @@ const CodeEditor = () => {
     screenStream,
     remoteStreams,
     users,
+    handRaiseStatus,
+    isHandRaised,
     isAudioEnabled,
     isVideoEnabled,
     isScreenSharing,
     toggleMedia,
     toggleScreenShare,
+    toggleHandRaise,
   } = useMediasoup(socket, roomId, auth.user.fullname, action);
 
   const editorRef = useRef(null);
@@ -252,6 +255,8 @@ const CodeEditor = () => {
         toggleVideo={handleToggleVideo}
         isScreenSharing={isScreenSharing}
         onToggleScreenShare={toggleScreenShare}
+        isHandRaised={isHandRaised}
+        onToggleHandRaise={toggleHandRaise}
         activeView={activeView}
         onViewChange={setActiveView}
         isLanguageSelectorDisabled={!isSolo && isStorageLoading}
@@ -303,6 +308,8 @@ const CodeEditor = () => {
               screenStream={screenStream}
               remoteStreams={remoteStreams}
               users={users}
+              handRaiseStatus={handRaiseStatus}
+              isHandRaised={isHandRaised}
               isVideoEnabled={isVideoEnabled}
               auth={auth}
             />

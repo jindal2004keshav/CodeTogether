@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FaUserCircle, FaExpand, FaCompress } from 'react-icons/fa';
+import { FaHand } from 'react-icons/fa6';
 import './styles/VideoPlayer.css';
 
 const VideoPlayer = ({
@@ -9,7 +10,8 @@ const VideoPlayer = ({
   isMuted,
   isVideoEnabled,
   isFullscreen,
-  onToggleFullscreen
+  onToggleFullscreen,
+  isHandRaised = false,
 }) => {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
@@ -72,10 +74,23 @@ const VideoPlayer = ({
       
       <div className="video-player-overlay">
         <span className="video-player-name">{name}</span>
-        {onToggleFullscreen && (
-          <button className="video-player-btn" onClick={onToggleFullscreen} title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
-            {isFullscreen ? <FaCompress /> : <FaExpand />}
-          </button>
+        {(isHandRaised || onToggleFullscreen) && (
+          <div className="video-player-actions">
+            {isHandRaised && (
+              <span className="hand-indicator" title="Hand raised">
+                <FaHand />
+              </span>
+            )}
+            {onToggleFullscreen && (
+              <button
+                className="video-player-btn"
+                onClick={onToggleFullscreen}
+                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+              >
+                {isFullscreen ? <FaCompress /> : <FaExpand />}
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

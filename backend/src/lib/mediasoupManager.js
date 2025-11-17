@@ -77,16 +77,40 @@ export const initializeMediasoupHandlers = (io, socket) => {
         try {
             const consumer = await transport.consume({ producerId, rtpCapabilities, paused: true });
             rooms[roomId].peers[socket.id].consumers.push(consumer);
-            consumer.on('producerclose', () => socket.to(socket.id).emit('consumer-closed', { consumerId: consumer.id }));
+            consumer.on('producerclose', () => {
+                const peer = rooms[roomId]?.peers[socket.id];
+                if (peer) {
+                    peer.consumers = peer.consumers.filter(c => c.id !== consumer.id);
+                }
+                socket.emit('consumer-closed', { consumerId: consumer.id });
+                consumer.close();
+            });
+            consumer.on('transportclose', () => {
+                const peer = rooms[roomId]?.peers[socket.id];
+                if (peer) {
+                    peer.consumers = peer.consumers.filter(c => c.id !== consumer.id);
+                }
+            });
             callback({ id: consumer.id, producerId, kind: consumer.kind, rtpParameters: consumer.rtpParameters });
         } catch (error) {
             callback({ error: error.message });
         }
     });
 
-    socket.on("resume-consumer", async ({ consumerId }) => {
-        const consumer = rooms[socketToRoomMap.get(socket.id)]?.peers[socket.id]?.consumers.find(c => c.id === consumerId);
-        if (consumer) await consumer.resume();
+    socket.on("resume-consumer", async ({ consumerId }, callback) => {
+        const roomId = socketToRoomMap.get(socket.id);
+        const consumer = rooms[roomId]?.peers[socket.id]?.consumers.find(c => c.id === consumerId);
+        if (!consumer) {
+            callback?.({ success: false, message: "Consumer not found or already closed" });
+            return;
+        }
+        try {
+            await consumer.resume();
+            callback?.({ success: true });
+        } catch (error) {
+            console.error("Failed to resume consumer:", error);
+            callback?.({ success: false, message: error.message });
+        }
     });
 
     socket.on('close-producer', ({ producerId }) => {

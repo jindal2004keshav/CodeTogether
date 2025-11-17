@@ -17,15 +17,16 @@ import { VscOutput } from "react-icons/vsc";
 import { IoExit } from "react-icons/io5";
 import toast from "react-hot-toast";
 import "./styles/EditorHeader.css";
+import { FaHand } from "react-icons/fa6";
 
-const renderLimitToast = () => {
-  toast.error(
-    "Server is running on Render.com, which doesn’t support the UDP-based media transport. " +
-    "You won’t be able to see or hear other users’ video/audio or screen sharing."
-    ,
-    { duration: 15000 }
-  );
-};
+// const renderLimitToast = () => {
+//   toast.error(
+//     "Server is running on Render.com, which doesn’t support the UDP-based media transport. " +
+//     "You won’t be able to see or hear other users’ video/audio or screen sharing."
+//     ,
+//     { duration: 15000 }
+//   );
+// };
 
 const EditorHeader = ({
   language,
@@ -46,6 +47,8 @@ const EditorHeader = ({
   isScreenSharing,
   onToggleScreenShare,
   isLanguageSelectorDisabled,
+  isHandRaised,
+  onToggleHandRaise,
 }) => {
   const { roomId } = useParams();
   const navigate = useNavigate();
@@ -83,15 +86,15 @@ const EditorHeader = ({
   };
 
   const handleAudioToggle = () => {
-    if (!isAudioEnabled) renderLimitToast();
+    // if (!isAudioEnabled) renderLimitToast();
     toggleAudio();
   };
   const handleVideoToggle = () => {
-    if (!isVideoEnabled) renderLimitToast();
+    // if (!isVideoEnabled) renderLimitToast();
     toggleVideo();
   };
   const handleScreenShareToggle = () => {
-    if (!isScreenSharing) renderLimitToast();
+    // if (!isScreenSharing) renderLimitToast();
     onToggleScreenShare();
   };
 
@@ -144,6 +147,13 @@ const EditorHeader = ({
             </button>
             <button onClick={handleScreenShareToggle} className={`control-btn ${isScreenSharing ? "active" : ""}`} title={isScreenSharing ? "Stop Sharing" : "Share Screen"}>
               <FaDesktop size={16} />
+            </button>
+            <button
+              onClick={onToggleHandRaise}
+              className={`control-btn ${isHandRaised ? "active" : ""}`}
+              title={isHandRaised ? "Lower Hand" : "Raise Hand"}
+            >
+              <FaHand size={16} />
             </button>
             <button
               onClick={handleVideoToggle}

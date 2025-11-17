@@ -3,7 +3,11 @@ import { createRouter } from './mediasoup.js';
 
 const sendUpdatedUserList = (io, roomId) => {
     if (rooms[roomId]) {
-        const userList = Array.from(rooms[roomId].users.entries()).map(([id, name]) => ({ id, name }));
+        const userList = Array.from(rooms[roomId].users.entries()).map(([id, user]) => ({
+            id,
+            name: user.name,
+            handRaised: !!user.handRaised,
+        }));
         io.to(roomId).emit('update-user-list', userList);
     }
 };
@@ -13,7 +17,8 @@ const handleLeaveRoom = (io, socket) => {
     if (!roomId || !rooms[roomId]) return;
 
     const room = rooms[roomId];
-    const username = room.users.get(socket.id);
+    const user = room.users.get(socket.id);
+    const username = user?.name;
 
     console.log(`Cleaning up for user ${username} (${socket.id}) in room ${roomId}`);
 
@@ -29,6 +34,7 @@ const handleLeaveRoom = (io, socket) => {
     console.log(`User ${username} left room ${roomId}. Users left: ${room.users.size}`);
     if (username) {
         socket.to(roomId).emit("user-left", { socketId: socket.id, name: username });
+        io.to(roomId).emit("hand-raise-update", { userId: socket.id, handRaised: false, name: username });
     }
 
     if (room.users.size === 0) {
@@ -49,10 +55,14 @@ export const initializeRoomHandlers = (io, socket) => {
             socketToRoomMap.set(socket.id, roomId);
             
             initializeRoomState(roomId, router);
-            rooms[roomId].users.set(socket.id, name);
+            rooms[roomId].users.set(socket.id, { name, handRaised: false });
             rooms[roomId].peers[socket.id] = { transports: [], producers: [], consumers: [] };
             
-            const currentUserList = Array.from(rooms[roomId].users.entries()).map(([id, name]) => ({ id, name }));
+            const currentUserList = Array.from(rooms[roomId].users.entries()).map(([id, user]) => ({
+                id,
+                name: user.name,
+                handRaised: !!user.handRaised,
+            }));
 
             console.log(`User ${name} created and joined room ${roomId}`);
             callback({ success: true, roomId, message: "Room created", users: currentUserList });
@@ -63,7 +73,7 @@ export const initializeRoomHandlers = (io, socket) => {
         }
     });
 
-    socket.on("join-room", (roomId, name, callback) => {
+    socket.on("join-room", async (roomId, name, callback) => {
         if (!rooms[roomId]) return callback({ success: false, message: "Room not found." });
         // if (socketToRoomMap.has(socket.id)) {
         //     handleLeaveRoom(io, socket);
@@ -73,7 +83,11 @@ export const initializeRoomHandlers = (io, socket) => {
 
         if (currentRoomId === roomId) {
             console.log(`User ${name} (${socket.id}) sent a redundant join request for the same room ${roomId}.`);
-            const currentUserList = Array.from(rooms[roomId].users.entries()).map(([id, name]) => ({ id, name }));
+            const currentUserList = Array.from(rooms[roomId].users.entries()).map(([id, user]) => ({
+                id,
+                name: user.name,
+                handRaised: !!user.handRaised,
+            }));
             return callback({ 
                 success: true, 
                 roomId, 
@@ -88,13 +102,17 @@ export const initializeRoomHandlers = (io, socket) => {
         
         socket.join(roomId);
         socketToRoomMap.set(socket.id, roomId);
-        rooms[roomId].users.set(socket.id, name);
+        rooms[roomId].users.set(socket.id, { name, handRaised: false });
         rooms[roomId].peers[socket.id] = { transports: [], producers: [], consumers: [] };
 
         console.log(`User ${name} joined room ${roomId}`);
         socket.to(roomId).emit("user-joined", { socketId: socket.id, name });
         
-        const currentUserList = Array.from(rooms[roomId].users.entries()).map(([id, name]) => ({ id, name }));
+        const currentUserList = Array.from(rooms[roomId].users.entries()).map(([id, user]) => ({
+            id,
+            name: user.name,
+            handRaised: !!user.handRaised,
+        }));
         callback({ 
             success: true, 
             roomId, 
@@ -106,6 +124,26 @@ export const initializeRoomHandlers = (io, socket) => {
     });
 
     socket.on("leave-room", () => handleLeaveRoom(io, socket));
+    socket.on("toggle-hand-raise", ({ handRaised }, callback) => {
+        const roomId = socketToRoomMap.get(socket.id);
+        if (!roomId || !rooms[roomId]) {
+            callback?.({ success: false, message: "Room not found" });
+            return;
+        }
+        const user = rooms[roomId].users.get(socket.id);
+        if (!user) {
+            callback?.({ success: false, message: "User not in room" });
+            return;
+        }
+        user.handRaised = !!handRaised;
+        io.to(roomId).emit("hand-raise-update", {
+            userId: socket.id,
+            handRaised: user.handRaised,
+            name: user.name,
+        });
+        sendUpdatedUserList(io, roomId);
+        callback?.({ success: true });
+    });
     socket.on("disconnect", (reason) => {
         console.log(`User disconnected: ${socket.id}, reason: ${reason}`);
         handleLeaveRoom(io, socket);
