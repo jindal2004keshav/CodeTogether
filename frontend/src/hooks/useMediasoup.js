@@ -321,11 +321,16 @@ export const useMediasoup = (socket, roomId, name, action) => {
           track.stop();
           return;
         }
-
+        console.log(connectionState);
+        console.log(stream);
+        console.log(track);
+        console.log(mediaType);
+        console.log(sendTransportRef.current.produce);
         const newProducer = await sendTransportRef.current.produce({
           track,
           appData: { type: mediaType },
         });
+        console.log("New Producer: ", newProducer);
 
         producersRef.current[mediaType] = newProducer;
             
