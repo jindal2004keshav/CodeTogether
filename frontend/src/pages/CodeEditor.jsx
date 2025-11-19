@@ -16,6 +16,7 @@ import Input from "../components/Input";
 import Output from "../components/Output";
 import Canvas from "./Canvas";
 import RoomView from "../components/RoomView";
+import ChatPanel from "../components/ChatPanel";
 import Modal from "../components/Alert";
 import "./styles/CodeEditor.css";
 
@@ -124,6 +125,9 @@ const CodeEditor = () => {
     toggleMedia,
     toggleScreenShare,
     toggleHandRaise,
+    chatMessages,
+    sendChatMessage,
+    socketId,
   } = useMediasoup(socket, roomId, auth.user.fullname, action);
 
   const editorRef = useRef(null);
@@ -195,7 +199,7 @@ const CodeEditor = () => {
   );
 
   useEffect(() => {
-    if (activeView === "whiteboard" || activeView === "io") {
+    if (activeView === "whiteboard" || activeView === "io" || activeView === "chat") {
       setIsViewVisible(false);
       const timer = setTimeout(() => setIsViewVisible(true), 200);
       return () => clearTimeout(timer);
@@ -216,6 +220,17 @@ const CodeEditor = () => {
     [input, output, isLoading, isError]
   );
   const canvasView = useMemo(() => <Canvas />, []);
+  const chatView = useMemo(
+    () => (
+      <ChatPanel
+        messages={chatMessages}
+        onSend={sendChatMessage}
+        currentUserId={socketId}
+        disabled={isSolo}
+      />
+    ),
+    [chatMessages, sendChatMessage, socketId, isSolo]
+  );
 
   const editorUI = (
     <div className="code-editor-layout">
@@ -292,7 +307,11 @@ const CodeEditor = () => {
               <div
                 className={`view-container ${isViewVisible ? "visible" : ""}`}
               >
-                {activeView === "io" ? ioView : canvasView}
+                {activeView === "io"
+                  ? ioView
+                  : activeView === "whiteboard"
+                  ? canvasView
+                  : chatView}
               </div>
             </Allotment.Pane>
           </Allotment>

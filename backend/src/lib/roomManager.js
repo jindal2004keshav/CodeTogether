@@ -1,6 +1,8 @@
 import { rooms, socketToRoomMap, initializeRoomState, cleanupRoom } from './state.js';
 import { createRouter } from './mediasoup.js';
 
+const MAX_CHAT_MESSAGES = 200;
+
 const sendUpdatedUserList = (io, roomId) => {
     if (rooms[roomId]) {
         const userList = Array.from(rooms[roomId].users.entries()).map(([id, user]) => ({
@@ -65,7 +67,7 @@ export const initializeRoomHandlers = (io, socket) => {
             }));
 
             console.log(`User ${name} created and joined room ${roomId}`);
-            callback({ success: true, roomId, message: "Room created", users: currentUserList });
+            callback({ success: true, roomId, message: "Room created", users: currentUserList, messages: rooms[roomId].messages });
             sendUpdatedUserList(io, roomId);
         } catch (error) {
             console.error("Error creating room:", error);
@@ -117,7 +119,8 @@ export const initializeRoomHandlers = (io, socket) => {
             success: true, 
             roomId, 
             message: "Room joined",
-            users: currentUserList 
+            users: currentUserList,
+            messages: rooms[roomId].messages 
         });
         
         sendUpdatedUserList(io, roomId);
@@ -144,6 +147,37 @@ export const initializeRoomHandlers = (io, socket) => {
         sendUpdatedUserList(io, roomId);
         callback?.({ success: true });
     });
+    socket.on("chat-send-message", ({ message }, callback) => {
+        const roomId = socketToRoomMap.get(socket.id);
+        if (!roomId || !rooms[roomId]) {
+            callback?.({ success: false, message: "Room not found" });
+            return;
+        }
+
+        const text = typeof message === "string" ? message.trim() : "";
+        if (!text) {
+            callback?.({ success: false, message: "Message cannot be empty" });
+            return;
+        }
+
+        const user = rooms[roomId].users.get(socket.id);
+        const newMessage = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            userId: socket.id,
+            name: user?.name || "Anonymous",
+            message: text.slice(0, 1000),
+            timestamp: Date.now(),
+        };
+
+        rooms[roomId].messages.push(newMessage);
+        if (rooms[roomId].messages.length > MAX_CHAT_MESSAGES) {
+            rooms[roomId].messages.splice(0, rooms[roomId].messages.length - MAX_CHAT_MESSAGES);
+        }
+
+        io.to(roomId).emit("chat-message", newMessage);
+        callback?.({ success: true });
+    });
+
     socket.on("disconnect", (reason) => {
         console.log(`User disconnected: ${socket.id}, reason: ${reason}`);
         handleLeaveRoom(io, socket);

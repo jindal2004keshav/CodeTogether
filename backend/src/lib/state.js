@@ -2,7 +2,7 @@ export const rooms = {}; // Stores mediasoup router, users, peers
 export const socketToRoomMap = new Map(); // Maps socket.id to roomId
 
 export const initializeRoomState = (roomId, router) => {
-    rooms[roomId] = { router, users: new Map(), peers: {} };
+    rooms[roomId] = { router, users: new Map(), peers: {}, messages: [] };
 };
 
 export const cleanupRoom = (roomId) => {

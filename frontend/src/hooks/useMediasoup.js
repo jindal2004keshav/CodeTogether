@@ -26,6 +26,7 @@ export const useMediasoup = (socket, roomId, name, action) => {
 
   // Remote Media State
   const [remoteStreams, setRemoteStreams] = useState({});
+  const [chatMessages, setChatMessages] = useState([]);
   const [users, setUsers] = useState([]);
   const [socketId, setSocketId] = useState(null);
   const navigate = useNavigate();
@@ -75,6 +76,11 @@ export const useMediasoup = (socket, roomId, name, action) => {
       console.error(`Error consuming stream of type ${type} from ${socketId}:`, error);
     }
   }, [socket]);
+
+  const handleIncomingMessage = useCallback((message) => {
+    if (!message) return;
+    setChatMessages(prev => [...prev, message]);
+  }, []);
 
   useEffect(() => {
     if (!socket) {
@@ -214,6 +220,7 @@ export const useMediasoup = (socket, roomId, name, action) => {
     socket.on("user-joined", handleNewUser);
     socket.on("user-left", handleUserLeft);
     socket.on("hand-raise-update", handleHandRaiseUpdate);
+    socket.on("chat-message", handleIncomingMessage);
 
     const eventToEmit = action === 'create' ? 'create-room' : 'join-room';
     
@@ -223,6 +230,7 @@ export const useMediasoup = (socket, roomId, name, action) => {
       if (response.success) {
         toast.success(response.message);
         setUsers(response.users.filter(u => u.id !== socketId));
+        setChatMessages(response.messages || []);
         initMediasoup();
       } else {
         toast.error(response.message);
@@ -244,9 +252,10 @@ export const useMediasoup = (socket, roomId, name, action) => {
       socket.off("user-joined", handleNewUser);
       socket.off("user-left", handleUserLeft);
       socket.off("hand-raise-update", handleHandRaiseUpdate);
+      socket.off("chat-message", handleIncomingMessage);
       if (roomId !== "solo") socket.emit("leave-room");
     };
-  }, [socket, socketId, roomId, name, action, handleConsumeStream, navigate, syncHandRaiseState]);
+  }, [socket, socketId, roomId, name, action, handleConsumeStream, navigate, syncHandRaiseState, handleIncomingMessage]);
 
   const toggleHandRaise = useCallback(() => {
     if (!socket || !socketId || roomId === "solo") return;
@@ -321,16 +330,10 @@ export const useMediasoup = (socket, roomId, name, action) => {
           track.stop();
           return;
         }
-        console.log(connectionState);
-        console.log(stream);
-        console.log(track);
-        console.log(mediaType);
-        console.log(sendTransportRef.current.produce);
         const newProducer = await sendTransportRef.current.produce({
           track,
           appData: { type: mediaType },
         });
-        console.log("New Producer: ", newProducer);
 
         producersRef.current[mediaType] = newProducer;
             
@@ -373,6 +376,17 @@ export const useMediasoup = (socket, roomId, name, action) => {
     }
   }, []);
 
+  const sendChatMessage = useCallback((message) => {
+    if (!socket || !socketId || roomId === "solo") return;
+    const trimmed = typeof message === "string" ? message.trim() : "";
+    if (!trimmed) return;
+
+    socket.emit("chat-send-message", { message: trimmed }, (response) => {
+      if (response?.success) return;
+      toast.error(response?.message || "Unable to send message");
+    });
+  }, [socket, socketId, roomId]);
+
   return {
     myStream,
     screenStream,
@@ -386,5 +400,8 @@ export const useMediasoup = (socket, roomId, name, action) => {
     toggleMedia,
     toggleScreenShare,
     toggleHandRaise,
+    chatMessages,
+    sendChatMessage,
+    socketId,
   };
 };

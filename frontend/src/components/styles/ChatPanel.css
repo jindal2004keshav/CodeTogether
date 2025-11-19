@@ -1,0 +1,122 @@
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: rgba(17, 17, 23, 0.9);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-message {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 10px 12px;
+  max-width: 85%;
+  align-self: flex-start;
+}
+
+.chat-message-own {
+  background: rgba(127, 32, 230, 0.2);
+  align-self: flex-end;
+}
+
+.chat-message-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  margin-bottom: 6px;
+  opacity: 1;
+}
+
+.chat-sender {
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.chat-time {
+  color: #b0b0b0;
+}
+
+.chat-text {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #f0f0f0;
+}
+
+.chat-message {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 10px 12px;
+  max-width: 85%;
+  align-self: flex-start;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chat-message-own {
+  background: rgba(127, 32, 230, 0.25);
+  align-self: flex-end;
+  border: 1px solid rgba(127, 32, 230, 0.3);
+}
+
+.chat-message-own .chat-sender {
+  color: #d4a5ff;
+}
+
+.chat-message-own .chat-text {
+  color: #ffffff;
+}
+
+.chat-input-container {
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.chat-input-container textarea {
+  flex: 1;
+  resize: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px;
+  color: #f5f5f5;
+  font-family: inherit;
+}
+
+.chat-input-container button {
+  background: linear-gradient(120deg, #7f20e6, #b331f9);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.chat-input-container button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-empty-state {
+  margin-top: 40px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+}
+

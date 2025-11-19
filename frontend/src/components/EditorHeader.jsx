@@ -118,25 +118,69 @@ const EditorHeader = ({
           <FaPlay size={15} />
           <span>{isLoading ? "Running..." : "Run Code"}</span>
         </button>
-        <button
-          className="action-btn board-btn"
-          onClick={() => onViewChange(activeView === "io" ? "whiteboard" : "io")}
-          title={activeView === "io" ? "Switch to Whiteboard" : "Switch to Input/Output"}
-        >
-          <div key={activeView} className="btn-content-animated">
-            {activeView === "io" ? (
-              <>
-                <PiPencilCircleFill size={20} />
-                <span>Canvas</span>
-              </>
-            ) : (
-              <>
-                <VscOutput size={17} />
-                <span>I/O</span>
-              </>
-            )}
-          </div>
-        </button>
+          <button
+    className="action-btn board-btn"
+    onClick={() => {
+      const nextView = (() => {
+        switch (activeView) {
+          case "io":
+            return "whiteboard";
+          case "whiteboard":
+            return "chat";
+          case "chat":
+            return "io";
+          default:
+            return "io";
+        }
+      })();
+
+      onViewChange(nextView);
+    }}
+    title={
+      activeView === "io"
+        ? "Switch to Whiteboard"
+        : activeView === "whiteboard"
+        ? "Switch to Chat"
+        : activeView === "chat"
+        ? "Switch to Input/Output"
+        : "Switch to Input/Output"
+    }
+  >
+    <div key={activeView} className="btn-content-animated">
+      {(() => {
+        // Determine what view we'll switch to
+        const nextView = activeView === "io" 
+          ? "whiteboard" 
+          : activeView === "whiteboard" 
+          ? "chat" 
+          : "io";
+        
+        // Show the button for the next view
+        if (nextView === "whiteboard") {
+          return (
+            <>
+              <PiPencilCircleFill size={20} />
+              <span>Whiteboard</span>
+            </>
+          );
+        } else if (nextView === "chat") {
+          return (
+            <>
+              <VscOutput size={17} />
+              <span>Chat</span>
+            </>
+          );
+        } else {
+          return (
+            <>
+              <VscOutput size={17} />
+              <span>I/O</span>
+            </>
+          );
+        }
+      })()}
+    </div>
+  </button>
       </div>
 
       <div className="header-section header-right">
