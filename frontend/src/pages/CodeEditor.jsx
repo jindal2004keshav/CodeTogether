@@ -206,6 +206,50 @@ const CodeEditor = () => {
     }
   }, [activeView]);
 
+  // Window visibility detection for meeting awareness
+  useEffect(() => {
+    if (isSolo || !socket) return;
+
+    let lastVisibilityState = document.visibilityState;
+    let visibilityTimeout = null;
+
+    const handleVisibilityChange = () => {
+      const currentVisibility = document.visibilityState;
+      
+      // Clear any pending timeout
+      if (visibilityTimeout) {
+        clearTimeout(visibilityTimeout);
+        visibilityTimeout = null;
+      }
+
+      // Only emit if visibility actually changed
+      if (currentVisibility !== lastVisibilityState) {
+        const isHidden = currentVisibility === 'hidden';
+        
+        // Small delay to avoid rapid toggles (e.g., when switching between tabs quickly)
+        visibilityTimeout = setTimeout(() => {
+          if (socket && socket.connected) {
+            socket.emit('window-visibility-change', {
+              isHidden,
+              timestamp: Date.now(),
+            });
+          }
+        }, 100);
+        
+        lastVisibilityState = currentVisibility;
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (visibilityTimeout) {
+        clearTimeout(visibilityTimeout);
+      }
+    };
+  }, [isSolo, socket]);
+
   const ioView = useMemo(
     () => (
       <Allotment vertical>

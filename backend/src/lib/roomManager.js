@@ -178,6 +178,26 @@ export const initializeRoomHandlers = (io, socket) => {
         callback?.({ success: true });
     });
 
+    socket.on("window-visibility-change", ({ isHidden }) => {
+        const roomId = socketToRoomMap.get(socket.id);
+        if (!roomId || !rooms[roomId]) {
+            return;
+        }
+
+        const user = rooms[roomId].users.get(socket.id);
+        if (!user) {
+            return;
+        }
+
+        // Broadcast to other users in the room (excluding the sender)
+        socket.to(roomId).emit("window-visibility-change", {
+            userId: socket.id,
+            name: user.name,
+            isHidden: !!isHidden,
+            timestamp: Date.now(),
+        });
+    });
+
     socket.on("disconnect", (reason) => {
         console.log(`User disconnected: ${socket.id}, reason: ${reason}`);
         handleLeaveRoom(io, socket);

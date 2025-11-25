@@ -212,6 +212,16 @@ export const useMediasoup = (socket, roomId, name, action) => {
         )
       );
     };
+
+    const handleWindowVisibilityChange = ({ userId, name, isHidden }) => {
+      if (!userId || userId === socketId) return;
+      const userName = name || "Someone";
+      if (isHidden) {
+        toast(`${userName} switched to another window`, { icon: '👋' });
+      } else {
+        toast(`${userName} returned to the meeting`, { icon: '👀' });
+      }
+    };
     
     socket.on("new-producer", handleNewProducer);
     socket.on("producer-closed", handleProducerClosed);
@@ -221,6 +231,7 @@ export const useMediasoup = (socket, roomId, name, action) => {
     socket.on("user-left", handleUserLeft);
     socket.on("hand-raise-update", handleHandRaiseUpdate);
     socket.on("chat-message", handleIncomingMessage);
+    socket.on("window-visibility-change", handleWindowVisibilityChange);
 
     const eventToEmit = action === 'create' ? 'create-room' : 'join-room';
     
@@ -253,6 +264,7 @@ export const useMediasoup = (socket, roomId, name, action) => {
       socket.off("user-left", handleUserLeft);
       socket.off("hand-raise-update", handleHandRaiseUpdate);
       socket.off("chat-message", handleIncomingMessage);
+      socket.off("window-visibility-change", handleWindowVisibilityChange);
       if (roomId !== "solo") socket.emit("leave-room");
     };
   }, [socket, socketId, roomId, name, action, handleConsumeStream, navigate, syncHandRaiseState, handleIncomingMessage]);
